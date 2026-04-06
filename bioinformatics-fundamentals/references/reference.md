@@ -464,6 +464,17 @@ bwa-mem2 mem -t 16 -5SP reference.fa R1.fq.gz R2.fq.gz \
   | samtools sort -n -@ 16 -o hic_namesort.bam
 ```
 
+`-F 2316` excludes FLAG bits 4 + 8 + 256 + 2048 = 2316:
+- 4 (unmapped): keep only mapped reads
+- 8 (mate unmapped): keep only reads whose mate also mapped
+- 256 (secondary alignment): keep only primary alignments
+- 2048 (supplementary/chimeric): exclude split-read artefacts
+
+**Important:** We do NOT require proper pairs (`-f 2`) for Hi-C. Hi-C mates
+intentionally map to distant loci — often different chromosomes — which violates
+the "proper pair" definition. Requiring proper pairs here would remove the
+long-range contacts that are the entire signal.
+
 The `-5SP` flags are required for Hi-C:
 - `-5`: always reports the 5'-most alignment as primary (orientation convention)
 - `-SP`: disables paired-end rescue — Hi-C mates are expected to map far apart
@@ -695,3 +706,413 @@ BED → SAM/VCF:   SAM_start = BED_start + 1;  SAM_end = BED_end
 | VCF POS    | 1-based           | Indel REF/ALT anchored at POS |
 | GFF/GTF    | 1-based closed    | Start and end inclusive |
 | BAM binary | 0-based           | Internal; samtools view displays as 1-based |
+
+---
+
+## Oxford Nanopore Sequencing (ONT)
+
+### Key Characteristics
+- Read length: R9.4.1 and R10.4.1 pores; typically 10–100 kb; ultra-long reads up to 4 Mb
+- Accuracy: R9.4.1 with Guppy high-accuracy = ~98–99%; R10.4.1 = ~99.5%; duplex mode = ~99.9%
+- Error profile: context-dependent errors (homopolymers, low-complexity), systematic errors in certain motifs (e.g. 5mCpG methylation affects raw signal and can mimic errors)
+- Not paired-end: like HiFi, Nanopore is single-end (each pore reads one strand or duplex)
+
+### Basecalling: Dorado (current standard)
+Dorado replaced Guppy as the primary ONT basecaller in 2023.
+
+```bash
+# Standard basecalling (high-accuracy model)
+dorado basecaller hac pod5_directory/ > reads.bam
+
+# Super-accuracy model (slower, highest accuracy)
+dorado basecaller sup pod5_directory/ > reads.bam
+
+# Simplex with 5mCpG methylation calling
+dorado basecaller hac,5mCG_5hmCG pod5_directory/ > reads_methyl.bam
+
+# Duplex calling (two complementary strands together; highest accuracy)
+dorado duplex hac pod5_directory/ > duplex.bam
+```
+
+Model selection:
+- `fast`: lowest accuracy, fastest (not recommended for most analyses)
+- `hac` (high accuracy): standard choice, good speed/accuracy balance
+- `sup` (super accuracy): best accuracy, 3-5× slower; use for final publication-quality calls
+- Models are chemistry-specific: R9.4.1 and R10.4.1 have separate model sets; always match model to flow cell chemistry
+
+### QC Metrics for ONT Data
+```bash
+# NanoStat summary
+NanoStat --fastq reads.fastq.gz --outdir nanostat_out/
+
+# NanoPlot for quality plots
+NanoPlot --fastq reads.fastq.gz --outdir nanoplot_out/ --plots dot
+
+# seqkit stats
+seqkit stats -N 50 reads.fastq.gz
+```
+
+Key QC metrics:
+| Metric | Target | Red flag |
+|--------|--------|----------|
+| Mean read quality | > Q15 (hac) / > Q20 (sup) | < Q10 (degrade with age) |
+| Read N50 | > 20 kb (genomic) | < 5 kb (fragmentation) |
+| % reads > Q10 | > 80% | < 60% |
+| Mean read length | 20–50 kb (depends on library) | < 5 kb (over-shearing) |
+
+### Alignment
+```bash
+# Standard genomic alignment
+minimap2 -a -x map-ont --MD -t 16 reference.fa reads.fastq.gz \
+  | samtools sort -@ 16 -o aligned.bam
+samtools index aligned.bam
+
+# Ultra-long read alignment (>100 kb reads)
+minimap2 -a -x map-ont -L --MD -t 16 reference.fa reads.fastq.gz \
+  | samtools sort -@ 16 -o aligned.bam
+# -L: write CIGAR with >65535 ops to CG tag (required for ultra-long reads)
+```
+
+### Error Profile and Downstream Impact
+- Homopolymer errors: runs of 4+ identical bases (AAAA, TTTT) frequently have 1-base indels. Avoid using raw ONT data for precise indel calling in homopolymers.
+- Systematic errors in specific 6-mer contexts (see ONT technical data; varies by model)
+- For variant calling: use Clair3 (designed for ONT; handles systematic errors) or DeepVariant (ONT model available)
+- For SV calling: Sniffles2 (long-read SV caller) or SVABA
+
+---
+
+## Structural Variant (SV) Calling
+
+### Types of Structural Variants
+
+| SV Type | Size | Description | Detection signal |
+|---------|------|-------------|-----------------|
+| Deletion | >50 bp | Sequence present in reference, absent in sample | Split reads, discordant pairs, read depth drop |
+| Insertion | >50 bp | Sequence absent in reference, present in sample | Split reads, discordant pair distance increase |
+| Inversion | >50 bp | Segment flipped in orientation | Discordant read-pair orientation |
+| Duplication | >50 bp | Tandem or interspersed copy number gain | Read depth increase, discordant pairs |
+| Translocation | Any | Sequence moved between chromosomes | Inter-chromosomal discordant pairs |
+| Mobile element insertion | 100–6000 bp | Transposable element insertion | Split reads with TE sequence |
+
+### Short-Read SV Callers
+
+**Manta** (Illumina, recommended for germline and somatic):
+```bash
+# Configure
+manta/bin/configManta.py --bam sample.bam --referenceFasta ref.fa --runDir manta_out/
+# Run
+manta_out/runWorkflow.py -m local -j 16
+# Output: manta_out/results/variants/diploidSV.vcf.gz (germline)
+#                                    somaticSV.vcf.gz (somatic, if tumor+normal)
+```
+Manta detects: deletions, insertions, tandem dups, inversions, translocations. Strong for insertions from split-read evidence.
+
+**DELLY** (general-purpose, good for rare SVs):
+```bash
+delly call -g ref.fa -o svs.bcf sample.bam
+delly filter -f germline -o filtered.bcf svs.bcf
+bcftools convert -O v filtered.bcf > filtered.vcf
+```
+
+**SMOOVE** (Lumpy wrapper, good for cohort SV calling):
+```bash
+smoove call --outdir smoove_out/ --name sample --fasta ref.fa --procs 8 sample.bam
+```
+
+### Long-Read SV Callers
+
+**Sniffles2** (HiFi and ONT):
+```bash
+# Single sample
+sniffles --input aligned.bam --vcf svs.vcf --reference ref.fa
+
+# Multi-sample (population mode — more accurate)
+# Step 1: per-sample SNFL files
+sniffles --input sample1.bam --snf sample1.snf --reference ref.fa
+sniffles --input sample2.bam --snf sample2.snf --reference ref.fa
+# Step 2: joint calling
+sniffles --input sample1.snf sample2.snf --vcf cohort_svs.vcf
+```
+
+Long-read SV calling advantages:
+- Insertions fully resolved (short reads can only detect insertion size, not sequence)
+- Complex SVs (chromoplexy, chromothripsis) visible as multi-breakpoint events
+- Mobile element insertions identified by sequence
+
+### SV Genotyping
+Called SVs need genotyping in all samples for population analysis:
+```bash
+# Genotype Manta SVs in additional samples
+manta/bin/configManta.py --bam additional_sample.bam --referenceFasta ref.fa \
+  --runDir geno_out/ --forceSV manta_svs.vcf.gz
+```
+
+### SV Validation and Filtering
+- Minimum support: ≥3–5 reads supporting the SV for high-confidence calls
+- Population frequency: rare SVs (AF < 1%) more likely to be functional
+- SURVIVOR: merge SV calls from multiple callers; SVs supported by ≥2 callers are more reliable
+```bash
+ls *.vcf > vcf_list.txt
+SURVIVOR merge vcf_list.txt 1000 2 1 0 0 50 merged_svs.vcf
+# 1000: max distance between breakpoints; 2: min callers; 50: min SV size
+```
+
+---
+
+## Variant Annotation
+
+After calling variants (SNPs, indels, SVs), annotation links genomic positions to functional impact and known databases.
+
+### VEP (Ensembl Variant Effect Predictor)
+
+VEP is the most comprehensive variant annotation tool. It annotates:
+- Variant consequence (missense, synonymous, splice-site, intergenic, etc.)
+- Gene and transcript impact (HGVS notation)
+- Population frequencies (gnomAD, ExAC, 1000 Genomes)
+- Pathogenicity scores (CADD, SIFT, PolyPhen-2)
+- Clinical significance (ClinVar)
+
+```bash
+# Install with cache (recommended for speed)
+vep --cache --dir_cache ~/.vep \
+  --input_file variants.vcf \
+  --output_file annotated.vcf \
+  --vcf \
+  --species homo_sapiens \
+  --assembly GRCh38 \
+  --everything           # enable all annotations
+  --fork 8               # parallel threads
+
+# Key flags
+# --pick: output one consequence per variant (most severe)
+# --canonical: flag canonical transcript
+# --af_gnomad: add gnomAD population frequencies
+# --sift b: SIFT prediction + score
+# --polyphen b: PolyPhen-2 prediction + score
+# --cadd_snvs: CADD scores (requires local installation)
+```
+
+**VEP consequence terms (most to least severe):**
+transcript_ablation > splice_acceptor_variant > splice_donor_variant > stop_gained > frameshift_variant > stop_lost > start_lost > transcript_amplification > inframe_insertion > inframe_deletion > missense_variant > protein_altering_variant > splice_region_variant > incomplete_terminal_codon_variant > start_retained_variant > stop_retained_variant > synonymous_variant > coding_sequence_variant > mature_miRNA_variant > 5_prime_UTR_variant > 3_prime_UTR_variant > non_coding_transcript_exon_variant > intron_variant > NMD_transcript_variant > non_coding_transcript_variant > upstream_gene_variant > downstream_gene_variant > TFBS_ablation > TFBS_amplification > TF_binding_site_variant > regulatory_region_ablation > regulatory_region_amplification > feature_elongation > regulatory_region_variant > feature_truncation > intergenic_variant
+
+### SnpEff
+
+Simpler than VEP; uses its own database; better for non-human organisms.
+
+```bash
+# List available databases
+snpeff databases | grep -i "homo_sapiens"
+
+# Annotate
+snpeff GRCh38.99 variants.vcf > annotated.vcf 2> snpeff.log
+
+# For non-model organisms: build database from GTF + FASTA
+snpeff build -gtf22 -v mySpecies
+```
+
+### Population Frequency Filtering
+
+A variant's population frequency is critical for disease interpretation:
+
+| gnomAD AF | Interpretation for rare Mendelian disease |
+|-----------|------------------------------------------|
+| > 1% | Very unlikely disease-causing (common variant) |
+| 0.1–1% | Low frequency; possible risk allele; unlikely for rare recessive |
+| < 0.1% | Rare; warrants investigation |
+| < 0.01% | Very rare; strong candidate for rare Mendelian disease |
+| Not in gnomAD | Novel; high priority for rare disease (but may be sequencing artefact) |
+
+```bash
+# Filter to rare variants (<1% in any gnomAD population)
+bcftools filter -i 'gnomAD_AF < 0.01 || gnomAD_AF = "."' annotated.vcf > rare.vcf
+```
+
+### Pathogenicity Scores
+
+| Score | Range | Interpretation |
+|-------|-------|----------------|
+| CADD Phred | 0–99 | > 20 = top 1% most deleterious; > 30 = top 0.1% |
+| SIFT | 0–1 | < 0.05 = damaging; > 0.05 = tolerated |
+| PolyPhen-2 | 0–1 | > 0.908 = probably damaging; 0.446–0.908 = possibly damaging |
+| GERP++ RS | -12.3 to 6.17 | > 2 = conserved; > 4 = highly conserved |
+| PhyloP | -14 to 6 | > 2 = conserved across vertebrates |
+
+No single score is definitive. Use in combination. CADD is the most broadly applicable.
+
+---
+
+## Hi-C Scaffolding Tools
+
+Hi-C contact data is used to order and orient contigs/scaffolds into chromosome-scale assemblies. Three major tools, each with different algorithms and trade-offs.
+
+### YAHS (Yet Another Hi-C Scaffolding Tool)
+
+Currently recommended for VGP-style assemblies (2022–present). Fastest, most robust to noisy Hi-C data.
+
+```bash
+yahs reference.fa hic_reads.bam -o scaffolded
+# Input: contig-level assembly FASTA + Hi-C BAM (name-sorted)
+# Output: scaffolded.agp, scaffolded_scaffolds_final.fa
+```
+
+Key advantages:
+- Handles mixed-ploidy assemblies (haplotype-resolved with Hifiasm + Hi-C)
+- Produces AGP output directly
+- More tolerant of low coverage Hi-C
+- Fastest of the three tools
+
+### SALSA2 (Scaffolding using Alignment and Length Scaled Analysis)
+
+Graph-based algorithm; good for complex genomes with many small contigs.
+
+```bash
+# Requires: BED file of Hi-C alignments (not BAM)
+python run_pipeline.py \
+  -a contigs.fa \
+  -l contigs.fa.fai \
+  -b hic.bed \
+  -e GATC \
+  -o salsa_output/
+```
+
+Key advantages:
+- Better for highly fragmented assemblies (thousands of contigs)
+- Graph-based: explicitly models uncertainty in contig ordering
+- Produces confidence scores for scaffold joins
+
+### 3D-DNA (Three-Dimensional DNA Organization)
+
+Used in Juicer pipeline; historically important (many published VGP v1 assemblies used it).
+
+```bash
+# Run after Juicer Hi-C processing
+3d-dna/run-asm-pipeline.sh reference.fasta merged_nodups.txt
+```
+
+Key advantages:
+- Integrated with Juicer (if already using Juicer Hi-C pipeline)
+- Good for chromosome-scale misassembly detection
+- Produces `.hic` files for visualization in Juicebox
+
+### Comparison
+
+| Tool | Speed | Fragmented assemblies | Misassembly detection | Output |
+|------|-------|----------------------|----------------------|--------|
+| YAHS | Fastest | Good | Moderate | AGP + FASTA |
+| SALSA2 | Moderate | Excellent | Good | FASTA + scaffold info |
+| 3D-DNA | Slowest | Moderate | Excellent (Juicebox review) | FASTA + .hic |
+
+**Recommendation:** Start with YAHS for speed and AGP output. Use 3D-DNA + Juicebox review for assemblies where manual curation of misassemblies is needed.
+
+### Post-Scaffolding Manual Curation
+
+Automated Hi-C scaffolding is never perfect. Inspect the contact map:
+```bash
+# Generate .hic file from YAHS output for Juicebox
+juicer_tools pre -s yahs.liftover.agp.txt scaffolded.agp yahs.alignment.bed \
+  genome.chrom.sizes scaffolded.hic
+# Open scaffolded.hic in Juicebox GUI to review scaffold joins
+```
+
+Signs of misassembly in the contact map:
+- Cross-shaped artefact at a scaffold join: two unrelated contigs were incorrectly joined
+- Missing diagonal: a contig is oriented backwards
+- Off-diagonal signal: two distant scaffolds should be adjacent
+
+---
+
+## DNA Methylation (WGBS / ONT)
+
+### Bisulfite Sequencing (WGBS and RRBS)
+
+Whole-genome bisulfite sequencing (WGBS) converts unmethylated cytosines to uracil (read as thymine), while methylated cytosines remain unchanged. This allows direct measurement of CpG methylation at single-base resolution.
+
+**Library types:**
+- WGBS: whole-genome coverage, 30–50× typical; most comprehensive
+- RRBS (Reduced Representation BS): uses restriction enzyme to enrich CpG-rich regions; cheaper; biased to promoters/CpG islands
+- EM-seq (enzymatic methyl-seq): replaces bisulfite chemistry with enzymes; reduces damage to DNA; compatible with standard sequencing depth
+
+### Alignment with Bismark
+
+```bash
+# Build bisulfite-converted reference
+bismark_genome_preparation reference/
+
+# Align paired-end WGBS
+bismark --genome reference/ -1 R1.fq.gz -2 R2.fq.gz --bam --parallel 8
+
+# Extract methylation information
+bismark_methylation_extractor --paired-end --CX_context \
+  --bedGraph --comprehensive \
+  --genome_folder reference/ \
+  sample_bismark_bt2_pe.bam
+
+# Output: CpG_context_*.txt (per-CpG methylation + coverage)
+#         bismark.bedGraph.gz (methylation % per CpG)
+```
+
+### Alignment with Bismark: Key Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--non_directional` | Library is non-directional (random strand capture); try if mapping rate is low |
+| `--pbat` | Post-bisulfite adaptor tagging libraries (PBAT, scBS-seq) |
+| `--CX` | Extract all CpG, CHG, CHH contexts (not just CpG) |
+| `--ignore` N | Ignore first N bases of each read (trim ends with systematic bias) |
+
+### ONT Methylation Calling (No Bisulfite Required)
+
+Modern ONT basecallers detect methylation directly from the raw signal:
+
+```bash
+# Basecall with methylation model
+dorado basecaller hac,5mCG_5hmCG pod5_files/ > reads_methyl.bam
+
+# Modkit: extract per-site methylation from modBAM
+modkit pileup reads_methyl.bam output_methylation.bed \
+  --ref reference.fa \
+  --preset traditional
+# Output: bedMethyl format (chrom, start, end, context, coverage, % methylated)
+```
+
+### Differential Methylation Analysis
+
+**MethylKit** (R, site-level and region-level):
+```R
+library(methylKit)
+# Load methylation data
+myobj <- methRead(list("treated.CpG.txt", "control.CpG.txt"),
+                  sample.id=list("treated","control"),
+                  assembly="hg38", treatment=c(1,0))
+# Filter low-coverage sites
+filtered <- filterByCoverage(myobj, lo.count=10, lo.perc=NULL, hi.perc=99.9)
+# Normalise
+normalised <- normalizeCoverage(filtered)
+# Find DMRs (differentially methylated regions)
+meth <- unite(normalised)
+diff <- calculateDiffMeth(meth)
+```
+
+**BSmooth** (R/Bioconductor, smooth region-level DMRs):
+- Better statistical model for low-coverage WGBS
+- Uses local smoothing to borrow strength across neighbouring CpGs
+- More robust for RRBS data
+
+### Interpreting Methylation Data
+
+**CpG context interpretation:**
+- CpG islands (CGIs): CpG-dense regions in promoters; typically unmethylated in expressed genes; methylation = gene silencing
+- Gene body methylation: moderately methylated; positive correlation with transcription (counterintuitive but robust)
+- Imprinted regions: one allele methylated, one not (~50% methylation); allele-specific methylation
+
+**Coverage requirements:**
+- Minimum 10× per CpG per sample for reliable methylation estimates
+- 30× recommended for WGBS; 50× for differentially methylated region (DMR) calling
+
+**Conversion efficiency (critical QC):**
+WGBS requires > 99% bisulfite conversion efficiency. Incomplete conversion causes false unmethylated-to-methylated errors.
+```bash
+# Check conversion efficiency from Bismark report
+grep "C methylated in CpHpG context" sample_bismark_bt2_PE_report.txt
+# Should be < 1% (unmethylated CHG should all convert)
+```

@@ -2,16 +2,21 @@
 name: bioinformatics-fundamentals
 description: >
   Foundation knowledge for genomics and bioinformatics workflows. Use this skill
-  whenever working with sequencing data (PacBio HiFi, Hi-C, Illumina), SAM/BAM
-  files, AGP assembly formats, FASTQ/FASTA, or BED files. Trigger for: debugging
-  alignment or filtering issues, paired-end vs single-end data questions, MAPQ or
-  PHRED score interpretation, empty output troubleshooting, broken read pairs,
-  genome assembly QC (BUSCO, Merqury, GenomeScope), AGP coordinate validation,
-  unloc assignments, GenomeArk data access, karyotype curation, chromosome count
-  analysis, and any general bioinformatics data analysis. Also trigger when the
-  user mentions samtools, bamtools, minimap2, BWA-MEM2, or any of the common
-  bioinformatics file-processing patterns described in this skill — even if they
-  don't explicitly frame it as a "fundamentals" question.
+  whenever working with sequencing data (PacBio HiFi, Hi-C, Illumina, Oxford
+  Nanopore), SAM/BAM files, AGP assembly formats, FASTQ/FASTA, or BED files.
+  Trigger for: debugging alignment or filtering issues, paired-end vs single-end
+  data questions, MAPQ or PHRED score interpretation, empty output
+  troubleshooting, broken read pairs, genome assembly QC (BUSCO, Merqury,
+  GenomeScope), AGP coordinate validation, unloc assignments, GenomeArk data
+  access, structural variant calling (Manta, DELLY, Sniffles2), variant
+  annotation (VEP, SnpEff, gnomAD), Hi-C scaffolding tools (YAHS, SALSA2,
+  3D-DNA), DNA methylation (Bismark, WGBS, ONT direct methylation), workflow
+  reproducibility (Conda, Snakemake, Nextflow, containers), karyotype curation,
+  chromosome count analysis, and any general bioinformatics data analysis. Also
+  trigger when the user mentions samtools, bamtools, minimap2, BWA-MEM2, Dorado,
+  Snakemake, Nextflow, or any of the common bioinformatics file-processing
+  patterns described in this skill — even if they don't explicitly frame it as a
+  "fundamentals" question.
 ---
 
 # Bioinformatics Fundamentals
@@ -24,7 +29,10 @@ subtle ordering mistakes cause silent failures.
 Supporting files live in `references/` — read them when you need depth beyond
 what is summarised here:
 - `reference.md` — Complete SAM/BAM spec, CIGAR ops, AGP format, FASTQ encoding,
-  tool command reference, sequencing tech specs, assembly quality metrics
+  tool command reference (samtools, minimap2, BWA-MEM2), sequencing tech specs
+  (HiFi, Hi-C, Illumina, ONT/Dorado), assembly QC, structural variant callers
+  (Manta, DELLY, Sniffles2), variant annotation (VEP, SnpEff, gnomAD, CADD),
+  Hi-C scaffolding tools (YAHS, SALSA2, 3D-DNA), DNA methylation (Bismark, modkit)
 - `common-issues.md` — Troubleshooting guide (empty outputs, pair-breaking,
   Hi-C and HiFi specific issues, AGP errors, diagnostic commands)
 - `genomeark-data-access.md` — GenomeArk AWS S3 directory structure, QC data
@@ -33,6 +41,9 @@ what is summarised here:
 - `genomic-analysis-patterns.md` — Karyotype curation, haploid vs diploid
   chromosome counts, phylogenetic tree species mapping, BED/telomere analysis,
   NCBI data integration
+- `workflow-reproducibility.md` — Conda/Mamba environments, Docker/Singularity
+  containers, Snakemake workflow management, Nextflow/nf-core pipelines, version
+  control, FAIR data practices, HPC/SLURM, reproducible notebooks
 
 ---
 

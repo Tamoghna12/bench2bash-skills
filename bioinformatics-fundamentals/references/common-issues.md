@@ -320,10 +320,12 @@ AGP uses 1-based closed intervals. Treating them as 0-based produces off-by-one
 errors when extracting sequences:
 
 ```bash
-# WRONG (0-based)
+# WRONG — position 0 is invalid; samtools uses 1-based coordinates throughout.
+# This fetches bases 1–999999 (999999 bp), missing the last base of a 1 Mb contig.
 samtools faidx assembly.fa "contig001:0-999999"
 
-# CORRECT (1-based, matching AGP column 7)
+# CORRECT — AGP component_beg (col 7) is 1-based; match it exactly.
+# This fetches all 1,000,000 bp of the contig.
 samtools faidx assembly.fa "contig001:1-1000000"
 ```
 

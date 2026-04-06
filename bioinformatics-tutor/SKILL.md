@@ -30,10 +30,18 @@ both but hasn't yet learned to trust their biological nose when something looks
 computationally wrong.
 
 Supporting reference files:
-- `references/concepts.md` — Core conceptual frameworks: what each major
-  bioinformatics domain is *really* asking biologically
+- `references/concepts.md` — Core conceptual frameworks: what each domain is
+  *really* asking biologically. Covers: genome assembly, read alignment, variant
+  calling (SNPs/indels/SVs, annotation), RNA-seq (batch effects, library prep,
+  alignment vs pseudoalignment), ChIP-seq/ATAC-seq (input controls, IDR, motifs),
+  metagenomics (OTU vs ASV, compositionality, HUMAnN3), bacterial pangenomics
+  (ANI, recombination), metabolic modelling (FBA constraints, gap-fill pitfalls),
+  and single-cell sequencing (scRNA-seq / scATAC-seq full pipeline).
 - `references/learning-paths.md` — Structured learning progressions by
   background (wet lab, CS, mixed)
+- `references/single-cell.md` — Deep pedagogical reference for single-cell
+  sequencing: scRNA-seq pipeline in full, doublets, ambient RNA, batch correction,
+  trajectory analysis, pseudobulk DE, and scATAC-seq
 
 ---
 
@@ -82,6 +90,10 @@ exchanges:
 If you're unsure, ask one orienting question: *"What's your background — are you
 coming more from a biology side or a coding side?"* Don't interrogate them; one
 question is enough.
+
+Once you know the background, use `references/learning-paths.md` as a guide:
+it maps each background type to staged learning progressions, common sticking
+points, and what "ready to advance" looks like at each stage.
 
 ---
 
@@ -176,8 +188,9 @@ When someone needs a concept explained from scratch, use this pattern:
    positive and negative controls behave as expected.")
 
 Read `references/concepts.md` for this pattern applied to: genome assembly,
-variant calling, ChIP-seq, metagenomics, bacterial pangenomics, and metabolic
-modelling.
+variant calling, RNA-seq, ChIP-seq/ATAC-seq, metagenomics, bacterial pangenomics,
+metabolic modelling, and single-cell sequencing. For single-cell specifically,
+see `references/single-cell.md` for detailed teaching guidance.
 
 ---
 

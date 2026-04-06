@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(unzip -q bench2bash-skills.zip)",
+      "Bash(cp -r bench2bash-skills/bioinformatics-tutor .)",
+      "Bash(cp -r bench2bash-skills/bioinformatics-fundamentals .)",
+      "Bash(cp -r bench2bash-skills/releases .)",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-tutor\\\\* -DestinationPath releases\\\\bioinformatics-tutor.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-fundamentals\\\\* -DestinationPath releases\\\\bioinformatics-fundamentals.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-tutor\\\\* -DestinationPath releases\\\\bioinformatics-tutor.zip && Rename-Item releases\\\\bioinformatics-tutor.zip releases\\\\bioinformatics-tutor.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-fundamentals\\\\* -DestinationPath releases\\\\bioinformatics-fundamentals.zip && Rename-Item releases\\\\bioinformatics-fundamentals.zip releases\\\\bioinformatics-fundamentals.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-tutor/* -DestinationPath releases/bioinformatics-tutor.zip; Rename-Item releases/bioinformatics-tutor.zip releases/bioinformatics-tutor.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path bioinformatics-fundamentals/* -DestinationPath releases/bioinformatics-fundamentals.zip; Rename-Item releases/bioinformatics-fundamentals.zip releases/bioinformatics-fundamentals.skill\")",
+      "Bash(powershell -Command \"Compress-Archive -Path ''bioinformatics-tutor/*'' -DestinationPath ''releases/bioinformatics-tutor.zip''\")",
+      "Bash(powershell -Command \"Rename-Item ''releases/bioinformatics-tutor.zip'' ''bioinformatics-tutor.skill''\")",
+      "Bash(powershell -Command \"Compress-Archive -Path ''bioinformatics-fundamentals/*'' -DestinationPath ''releases/bioinformatics-fundamentals.zip''\")",
+      "Bash(powershell -Command \"Rename-Item ''releases/bioinformatics-fundamentals.zip'' ''bioinformatics-fundamentals.skill''\")",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
