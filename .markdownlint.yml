@@ -1,0 +1,19 @@
+# Markdownlint configuration
+# Docs: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+default: true
+
+# Allow long lines — bioinformatics commands can be verbose
+MD013: false
+
+# Allow duplicate headings — reference files use repeated section names intentionally
+MD024: false
+
+# Allow bare URLs in text
+MD034: false
+
+# Allow inline HTML (used for none currently, but allow for future badge HTML)
+MD033: false
+
+# Allow multiple top-level headings — reference files have exactly one H1
+MD041: false

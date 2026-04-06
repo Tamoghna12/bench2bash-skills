@@ -1,0 +1,49 @@
+name: Skill gap
+description: Something is missing, too shallow, or out of date in the skills
+labels: ["content", "skill-gap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report missing coverage, shallow sections, or outdated information.
+
+  - type: dropdown
+    id: skill
+    attributes:
+      label: Which skill is affected?
+      options:
+        - bioinformatics-tutor
+        - bioinformatics-fundamentals
+        - Both
+        - New skill (not yet in repo)
+    validations:
+      required: true
+
+  - type: input
+    id: file
+    attributes:
+      label: Specific file (if known)
+      description: e.g. references/concepts.md, references/reference.md
+      placeholder: references/concepts.md
+
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is missing or insufficient?
+      description: Be as specific as possible. Which topic, tool, or workflow is not covered?
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Who does this affect?
+      description: What would someone be unable to do correctly without this information?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested content (optional)
+      description: If you know the correct information, paste it here. Commands, benchmarks, explanations — any detail helps.

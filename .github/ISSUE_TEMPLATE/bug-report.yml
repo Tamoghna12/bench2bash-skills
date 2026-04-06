@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in the skills is factually wrong
+labels: ["bug", "content"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to report incorrect commands, wrong benchmarks, outdated tool flags, or any factual error.
+
+  - type: input
+    id: file
+    attributes:
+      label: File and line number
+      description: e.g. bioinformatics-fundamentals/references/reference.md line 142
+      placeholder: bioinformatics-fundamentals/references/reference.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: What the skill currently says
+      description: Paste the relevant text or command exactly as it appears
+    validations:
+      required: true
+
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong about it
+      description: Explain the error precisely — wrong flag, wrong threshold, changed tool behaviour, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correct
+    attributes:
+      label: What it should say
+      description: Provide the corrected version if you know it
+    validations:
+      required: true
+
+  - type: input
+    id: source
+    attributes:
+      label: Source / evidence
+      description: Link to tool documentation, paper, or other authoritative source that supports the correction

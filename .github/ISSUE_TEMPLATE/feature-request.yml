@@ -1,0 +1,53 @@
+name: Feature request
+description: Propose a new skill or a substantial new section
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for new skills (new SKILL.md files) or major additions like a new reference file.
+        For small additions to existing content, open a **Skill gap** issue instead.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: What kind of addition?
+      options:
+        - New skill (new SKILL.md + references/)
+        - New reference file within an existing skill
+        - Major new section in an existing reference file
+    validations:
+      required: true
+
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name / topic
+      placeholder: e.g. "population-genomics" skill, or "phylogenomics" reference file
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Who would benefit and what would they be able to do that they cannot currently?
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Proposed scope
+      description: What topics should be covered? List the key sections or concepts.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Are you willing to contribute this?
+      options:
+        - label: Yes, I can write the content
+        - label: Partially — I can draft some sections
+        - label: No, I'm requesting someone else add it

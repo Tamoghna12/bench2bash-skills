@@ -1,0 +1,26 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local Claude settings (keep settings.local.json out of the repo
+# unless intentionally committed — currently it is committed)
+# .claude/
+
+# Temporary zip files (releases/ .skill files are intentionally committed)
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Node
+node_modules/

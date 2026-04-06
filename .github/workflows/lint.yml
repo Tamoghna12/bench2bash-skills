@@ -1,0 +1,48 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  markdownlint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules
+          config: .markdownlint.yml
+
+  check-skill-files:
+    name: Check .skill files are up to date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify releases exist
+        run: |
+          test -f releases/bioinformatics-tutor.skill || (echo "Missing releases/bioinformatics-tutor.skill" && exit 1)
+          test -f releases/bioinformatics-fundamentals.skill || (echo "Missing releases/bioinformatics-fundamentals.skill" && exit 1)
+          echo "Both .skill files present"
+
+      - name: Verify SKILL.md files have required frontmatter
+        run: |
+          for skill_file in */SKILL.md; do
+            if ! grep -q "^name:" "$skill_file"; then
+              echo "Missing 'name:' frontmatter in $skill_file"
+              exit 1
+            fi
+            if ! grep -q "^description:" "$skill_file"; then
+              echo "Missing 'description:' frontmatter in $skill_file"
+              exit 1
+            fi
+            echo "$skill_file: frontmatter OK"
+          done

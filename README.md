@@ -1,5 +1,10 @@
 # bench2bash-skills
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/Tamoghna12/bench2bash-skills)](https://github.com/Tamoghna12/bench2bash-skills/releases/latest)
+[![Lint](https://github.com/Tamoghna12/bench2bash-skills/actions/workflows/lint.yml/badge.svg)](https://github.com/Tamoghna12/bench2bash-skills/actions/workflows/lint.yml)
+[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 Two Claude skills for bioinformatics — one for learning, one for reference.
 Built for [bench2bash](https://tamoghna12.github.io/bench2bash.github.io/) by Tamoghna Das.
 

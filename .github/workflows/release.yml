@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package .skill files
+        run: |
+          cd bioinformatics-tutor
+          zip -r ../releases/bioinformatics-tutor.skill . -x "*.DS_Store"
+          cd ../bioinformatics-fundamentals
+          zip -r ../releases/bioinformatics-fundamentals.skill . -x "*.DS_Store"
+          cd ..
+          ls -lh releases/
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="See CHANGELOG.md for details."
+          fi
+          # Write to file to handle multiline safely
+          echo "$NOTES" > release_notes.txt
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.changelog.outputs.version }}"
+          body_path: release_notes.txt
+          files: |
+            releases/bioinformatics-tutor.skill
+            releases/bioinformatics-fundamentals.skill
+          draft: false
+          prerelease: false
